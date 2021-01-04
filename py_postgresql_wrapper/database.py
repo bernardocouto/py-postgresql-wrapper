@@ -29,6 +29,14 @@ class Database(object):
         self.connection = self.configuration.pool.connection()
         self.print_sql = self.configuration.print_sql
 
+    def delete(self, table):
+        """
+        Delete string command
+        :param table: Table name
+        :return: Delete builder
+        """
+        return DeleteBuilder(self, table)
+
     def disconnect(self):
         """
         Disconnect from database
@@ -39,7 +47,7 @@ class Database(object):
     def execute(self, sql, parameters=None, skip_load_query=False):
         """
         Execute query by name
-        :param sql: String o name of file
+        :param sql: String or name of file
         :param parameters: SQL parameters
         :param skip_load_query: Skip load file
         :return: Cursor
@@ -62,6 +70,14 @@ class Database(object):
         """
         return InsertBuilder(self, table)
 
+    def update(self, table):
+        """
+        Update string command
+        :param table: Table name
+        :return: Update builder
+        """
+        return UpdateBuilder(self, table)
+
     @staticmethod
     def load_query(name):
         """
@@ -79,6 +95,46 @@ class Database(object):
             else:
                 raise exception
 
+    def paging(self, sql, page=0, parameters=None, size=10, skip_load_query=True):
+        """
+        Paging string command
+        :param sql: String or name of file
+        :param page: Page number
+        :param parameters: SQL parameters
+        :param size: Page size
+        :param skip_load_query: Skip load file
+        :return:
+        """
+        if skip_load_query:
+            sql = sql
+        else:
+            sql = self.load_query(sql)
+        sql = '{} limit {} offset {}'.format(sql, size + 1, page * size)
+        data = self.execute(sql, parameters, skip_load_query=True).fetch_all()
+        last = len(data) <= size
+        return Page(page, size, data[:-1] if not last else data, last)
+
+    def select(self, table):
+        """
+        Select string command
+        :param table: Table name
+        :return: Select builder
+        """
+        return SelectBuilder(self, table)
+
+
+class Page(dict):
+
+    """
+    Page object
+    """
+
+    def __init__(self, number, size, data, last):
+        self['data'] = self.data = data
+        self['last'] = self.last = last
+        self['number'] = self.number = number
+        self['size'] = self.size = size
+
 
 # Builders
 class SQLBuilder(object):
@@ -91,6 +147,7 @@ class SQLBuilder(object):
         self.database = database
         self.parameters = {}
         self.table = table
+        self.where_conditions = []
 
     def execute(self):
         """
@@ -105,6 +162,57 @@ class SQLBuilder(object):
         :return: None
         """
         pass
+
+    def where_all(self, data):
+        """
+        Construction of the command for where all
+        :param data: Data for where
+        :return: Self
+        """
+        for value in data.keys():
+            self.where(value, data[value])
+        return self
+
+    def where_build(self):
+        """
+        Construction of the command for where
+        :return: Where command
+        """
+        if len(self.where_conditions) > 0:
+            conditions = ' and '.join(self.where_conditions)
+            return 'where {}'.format(conditions)
+        else:
+            return ''
+
+    def where(self, field, value, constant=False, operator='='):
+        """
+        Construction of the command for where conditions
+        :param field: Where field
+        :param value: Where value
+        :param constant: Where constant
+        :param operator: Where operator
+        :return: Self
+        """
+        if constant:
+            self.where_conditions.append('{} {} {}'.format(field, operator, value))
+        else:
+            self.parameters[field] = value
+            self.where_conditions.append('{0} {1} %({0})s'.format(field, operator))
+        return self
+
+
+class DeleteBuilder(SQLBuilder):
+
+    """
+    Delete constructor
+    """
+
+    def sql(self):
+        """
+        Construction of the command for data delete
+        :return: Delete SQL string
+        """
+        return 'delete from {} {}'.format(self.table, self.where_build())
 
 
 class InsertBuilder(SQLBuilder):
@@ -160,6 +268,133 @@ class InsertBuilder(SQLBuilder):
             raise ValueError('There are repeated keys in constants and values')
 
 
+class SelectBuilder(SQLBuilder):
+
+    """
+    Select Constructor
+    """
+
+    def __init__(self, database, table):
+        super(SelectBuilder, self).__init__(database, table)
+        self.select_fields = ['*']
+        self.select_group_by = []
+        self.select_order_by = []
+        self.select_page = ''
+
+    def fields(self, *fields):
+        """
+        Set select fields
+        :param fields: Select fields
+        :return: Self
+        """
+        self.select_fields = fields
+        return self
+
+    def group_by(self, *fields):
+        """
+        Set group by fields
+        :param fields: Group by fields
+        :return: Self
+        """
+        self.select_group_by = fields
+        return self
+
+    def order_by(self, *fields):
+        """
+        Set order by fields
+        :param fields: Order by fields
+        :return: Self
+        """
+        self.select_order_by = fields
+        return self
+
+    def paging(self, page=0, size=10):
+        """
+        Pagination
+        :param page: Page number
+        :param size: Page size
+        :return: Page
+        """
+        self.select_page = 'limit {} offset {}'.format(size + 1, page * size)
+        data = self.execute().fetch_all()
+        last = len(data) <= size
+        return Page(page, size, data[:-1] if not last else data, last)
+
+    def sql(self):
+        """
+        Construction of the command for data select
+        :return: Select SQL string
+        """
+        group_by = ', '.join(self.select_group_by)
+        if group_by != '':
+            group_by = 'group by {}'.format(group_by)
+        order_by = ', '.join(self.select_order_by)
+        if order_by != '':
+            order_by = 'order by {}'.format(order_by)
+        return 'select {} from {} {} {} {} {}'.format(
+            ', '.join(self.select_fields),
+            self.table,
+            self.where_build(),
+            group_by,
+            order_by,
+            self.select_page
+        )
+
+
+class UpdateBuilder(SQLBuilder):
+
+    """
+    Update constructor
+    """
+
+    def __init__(self, database, table):
+        super(UpdateBuilder, self).__init__(database, table)
+        self.statements = []
+
+    def set(self, field, value, constant=False):
+        """
+        Set constants or parameters
+        :param field: SQL field
+        :param value: SQL value
+        :param constant: SQL constant
+        :return: Self
+        """
+        if constant:
+            self.statements.append('{} = {}'.format(field, value))
+        else:
+            self.statements.append('{0} = %({0})s'.format(field))
+            self.parameters[field] = value
+        return self
+
+    def set_all(self, data):
+        """
+        Set all properties
+        :param data: Group of constants and parameters
+        :return: Self
+        """
+        for value in data.keys():
+            self.set(value, data[value])
+        return self
+
+    def set_build(self):
+        """
+        Construction of the command for set
+        :return: Set command
+        """
+        if len(self.statements) > 0:
+            statements = ', '.join(self.statements)
+            return 'set {}'.format(statements)
+        else:
+            return ''
+
+    def sql(self):
+        """
+        Construction of the command for data update
+        :return: Update SQL string
+        """
+        return 'update {} {} {}'.format(self.table, self.set_build(), self.where_build())
+
+
 # Wrappers
 class CursorWrapper(object):
 
@@ -183,10 +418,25 @@ class CursorWrapper(object):
         """
         self.cursor.close()
 
+    def fetch_all(self):
+        """
+        Fetch all record by the cursor
+        :return: All data
+        """
+        return [DictWrapper(row) for row in self.cursor.fetchall()]
+
+    def fetch_many(self, size):
+        """
+        Fetch many record by the cursor
+        :param size: Size number
+        :return: Many data
+        """
+        return [DictWrapper(row) for row in self.cursor.fetchmany(size)]
+
     def fetch_one(self):
         """
         Fetch one record by the cursor
-        :return: Data row
+        :return: Row data
         """
         row = self.cursor.fetchone()
         if row is not None:
@@ -198,15 +448,22 @@ class CursorWrapper(object):
     def next(self):
         """
         Return the next record by the cursor
-        :return: Data row
+        :return: Row data
         """
         row = self.fetch_one()
         if row is None:
             raise StopIteration()
         return row
 
+    def row_count(self):
+        """
+        Return row numbers
+        :return: Row numbers
+        """
+        return self.cursor.rowcount
 
-class DictWrapper(object):
+
+class DictWrapper(dict):
 
     """
     Dict wrapper to access dict attribute with dot operator
