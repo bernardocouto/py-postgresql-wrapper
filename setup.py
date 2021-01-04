@@ -9,7 +9,7 @@ setup(
     author='Bernardo Couto',
     author_email='bernardocouto.py@gmail.com',
     classifiers=[
-        'License :: OSI Approved :: GNU General Public License v3',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Topic :: Database'
