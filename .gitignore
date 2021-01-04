@@ -1,0 +1,8 @@
+# Byte Compiled
+__pycache__/
+
+# PyCharm
+.idea/
+
+# Virtual Environment
+venv/
