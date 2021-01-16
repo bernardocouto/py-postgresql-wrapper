@@ -1,9 +1,9 @@
 {
-  "dbname": "postgres",
+  "database": "postgres",
   "host": "localhost",
-  "maxconnections": 10,
+  "max_connection": 10,
   "password": "postgres",
   "port": 5432,
   "print_sql": true,
-  "user": "postgres"
+  "username": "postgres"
 }
