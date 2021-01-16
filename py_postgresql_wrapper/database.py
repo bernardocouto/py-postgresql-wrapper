@@ -5,7 +5,7 @@ import os
 import psycopg2
 import psycopg2.extras
 
-QUERIES_DIRECTORY = os.path.realpath(os.path.curdir) + '/sql/'
+QUERIES_DIRECTORY = os.path.realpath(os.path.curdir) + '/queries/'
 
 
 class Database(object):
@@ -54,7 +54,7 @@ class Database(object):
         """
         cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         if self.print_sql:
-            print('SQL: {} - Parameters: {}'.format(sql, parameters))
+            print('Query: {} - Parameters: {}'.format(sql, parameters))
         if skip_load_query:
             sql = sql
         else:
@@ -81,7 +81,7 @@ class Database(object):
     @staticmethod
     def load_query(name):
         """
-        Load a query located in ./sql/<name.sql>
+        Load a query located in ./queries/<name.queries>
         :param name: File name
         :return: Query as a string
         """
