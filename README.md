@@ -5,13 +5,13 @@ PyPostgreSQLWrapper is a simple adapter for PostgreSQL with connection pooling
 The configuration can be done through **JSON** file or by **Dict** following the pattern described below:
 ```json
 {
-  "dbname": "postgres",
+  "database": "postgres",
   "host": "localhost",
-  "maxconnections": 10,
+  "max_connection": 10,
   "password": "postgres",
   "port": 5432,
   "print_sql": true,
-  "user": "postgres"
+  "username": "postgres"
 }
 ```
 
