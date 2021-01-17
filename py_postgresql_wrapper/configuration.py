@@ -25,13 +25,13 @@ class Configuration(object):
                 except json.decoder.JSONDecodeError as exception:
                     raise ConfigurationInvalidException(exception)
         self.data = {
-            "dbname": self.data['database'],
-            "host": self.data['host'],
-            "maxconnections": self.data['max_connection'],
-            "password": self.data['password'],
-            "port": self.data['port'],
-            "print_sql": self.data['print_sql'],
-            "user": self.data['username']
+            "dbname": str(self.data['database']),
+            "host": str(self.data['host']),
+            "maxconnections": int(self.data['max_connection']),
+            "password": str(self.data['password']),
+            "port": int(self.data['port']),
+            "print_sql": bool(self.data['print_sql']),
+            "user": str(self.data['username'])
         }
         self.print_sql = self.data.pop('print_sql') if 'print_sql' in self.data else False
         self.pool = PooledDB(psycopg2, **self.data)
