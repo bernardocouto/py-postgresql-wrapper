@@ -26,5 +26,5 @@ setup(
     name='py-postgresql-wrapper',
     packages=find_packages(),
     url='https://github.com/bernardocouto/py-postgresql-wrapper',
-    version='1.0.3'
+    version='1.0.4'
 )
